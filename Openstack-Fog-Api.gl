@@ -1,0 +1,257 @@
+Storage
+This document explains how to get started using OpenStack Swift with Fog.
+
+Starting irb console
+
+Start by executing the following command:
+
+irb
+
+Once irb has launched you need to require the Fog library.
+
+If using Ruby 1.8.x execute:
+
+require 'rubygems'
+require 'fog'
+If using Ruby 1.9.x execute:
+
+require 'fog'
+Create Service
+
+Next, create a connection to Swift:
+
+service = Fog::Storage.new({
+  :provider            => 'OpenStack',   # OpenStack Fog provider
+  :openstack_username  => USERNAME,      # Your OpenStack Username
+  :openstack_api_key   => PASSWORD,      # Your OpenStack Password
+  :openstack_auth_url  => 'http://YOUR_OPENSTACK_ENDPOINT:PORT/v2.0/tokens'
+})
+Alternative regions are specified using the key :openstack_region. A list of regions available for Swift can be found by executing the following:
+
+Optional Service Parameters
+
+The Storage service supports the following additional parameters:
+
+Key	Description
+:persistent	If set to true, the service will use a persistent connection.
+:openstack_service_name	
+:openstack_service_type	
+:openstack_tenant	
+:openstack_region	
+:openstack_temp_url_key	
+Optional Connection Parameters
+
+Fog supports passing additional connection parameters to its underlying HTTP library (Excon) using the :connection_options parameter.
+
+Key	Description
+:connect_timeout	Connection timeout (default: 60 seconds)
+:write_timeout	Write timeout for connection (default: 60 seconds)
+:proxy	Proxy for HTTP and HTTPS connections
+:ssl_ca_path	Path to SSL certificate authorities
+:ssl_ca_file	SSL certificate authority file
+:ssl_verify_peer	SSL verify peer (default: true)
+Fog Abstractions
+
+Fog provides both a model and request abstraction. The request abstraction provides the most efficient interface and the model abstraction wraps the request abstraction to provide a convenient ActiveModel like interface.
+
+Request Layer
+
+The Fog::Storage object supports a number of methods that wrap individual HTTP requests to the Swift API.
+
+To see a list of requests supported by the storage service:
+
+service.requests
+
+This returns:
+
+[:copy_object, :delete_container, :delete_object, :delete_multiple_objects, :delete_static_large_object, :get_container, :get_containers, :get_object, :get_object_http_url, :get_object_https_url, :head_container, :head_containers, :head_object, :put_container, :put_object, :put_object_manifest, :put_dynamic_obj_manifest, :put_static_obj_manifest, :post_set_meta_temp_url_key]
+
+Example Request
+
+To request a view account details:
+
+response = service.head_containers
+This returns in the following Excon::Response:
+
+#<Excon::Response:0x10283fc68 @headers={"X-Account-Bytes-Used"=>"2563554", "Date"=>"Thu, 21 Feb 2013 21:57:02 GMT", "X-Account-Meta-Temp-Url-Key"=>"super_secret_key", "X-Timestamp"=>"1354552916.82056", "Content-Length"=>"0", "Content-Type"=>"application/json; charset=utf-8", "X-Trans-Id"=>"txe934924374a744c8a6c40dd8f29ab94a", "Accept-Ranges"=>"bytes", "X-Account-Container-Count"=>"7", "X-Account-Object-Count"=>"5"}, @status=204, @body="">
+To view the status of the response:
+
+response.status
+Note: Fog is aware of the valid HTTP response statuses for each request type. If an unexpected HTTP response status occurs, Fog will raise an exception.
+
+To view response headers:
+
+response.headers
+This will return:
+
+{"X-Account-Bytes-Used"=>"2563554", "Date"=>"Thu, 21 Feb 2013 21:57:02 GMT", "X-Account-Meta-Temp-Url-Key"=>"super_secret_key", "X-Timestamp"=>"1354552916.82056", "Content-Length"=>"0", "Content-Type"=>"application/json; charset=utf-8", "X-Trans-Id"=>"txe934924374a744c8a6c40dd8f29ab94a", "Accept-Ranges"=>"bytes", "X-Account-Container-Count"=>"7", "X-Account-Object-Count"=>"5"}
+To learn more about Fog::Storage request methods refer to rdoc. To learn more about Excon refer to Excon GitHub repo.
+
+Model Layer
+
+Fog models behave in a manner similar to ActiveModel. Models will generally respond to create, save, destroy, reload and attributes methods. Additionally, fog will automatically create attribute accessors.
+
+Here is a summary of common model methods:
+
+Method	Description
+create	Accepts hash of attributes and creates object.
+Note: creation is a non-blocking call and you will be required to wait for a valid state before using resulting object.
+save	Saves object.
+Note: not all objects support updating object.
+destroy	Destroys object.
+Note: this is a non-blocking call and object deletion might not be instantaneous.
+reload	Updates object with latest state from service.
+attributes	Returns a hash containing the list of model attributes and values.
+identity	Returns the identity of the object.
+Note: This might not always be equal to object.id.
+The remainder of this document details the model abstraction.
+
+Note: Fog sometimes refers to Swift containers as directories.
+
+List Directories
+
+To retrieve a list of directories:
+
+service.directories
+This returns a collection of Fog::Storage::OpenStack::Directory models:
+
+Get Directory
+
+To retrieve a specific directory:
+
+service.directories.get "blue"
+This returns a Fog::Storage::OpenStack::Directory instance:
+
+Create Directory
+
+To create a directory:
+
+service.directories.create :key => 'backups'
+Additional Parameters
+
+The create method also supports the following key values:
+
+Key	Description
+:metadata	Hash containing directory metadata.
+Delete Directory
+
+To delete a directory:
+
+directory.destroy
+Note: Directory must be empty before it can be deleted.
+
+List Files
+
+To list files in a directory:
+
+directory.files
+Note: File contents is not downloaded until body attribute is called.
+
+Upload Files
+
+To upload a file into a directory:
+
+file = directory.files.create :key => 'space.jpg', :body => File.open "space.jpg"
+Note: For files larger than 5 GB please refer to the Upload Large Files section.
+
+Additional Parameters
+
+The create method also supports the following key values:
+
+Key	Description
+:content_type	The content type of the object. Cloud Files will attempt to auto detect this value if omitted.
+:access_control_allow_origin	URLs can make Cross Origin Requests. Format is http://www.example.com. Separate URLs with a space. An asterisk (*) allows all. Please refer to CORS Container Headers for more information.
+:origin	The origin is the URI of the object's host.
+:etag	The MD5 checksum of your object's data. If specified, Cloud Files will validate the integrity of the uploaded object.
+:metadata	Hash containing file metadata.
+Upload Large Files
+
+Swift requires files larger than 5 GB (the Swift default limit) to be uploaded into segments along with an accompanying manifest file. All of the segments must be uploaded to the same container.
+
+    SEGMENT_LIMIT = 5368709119.0  # 5GB -1
+    BUFFER_SIZE = 1024 * 1024 # 1MB
+
+    File.open(file_name) do |f|
+      segment = 0
+      until file.eof?
+        segment += 1
+        offset = 0
+
+        # upload segment to cloud files
+        segment_suffix = segment.to_s.rjust(10, '0')
+        service.put_object("my_container", "large_file/#{segment_suffix}", nil) do
+          if offset <= SEGMENT_LIMIT - BUFFER_SIZE
+            buf = file.read(BUFFER_SIZE).to_s
+            offset += buf.size
+            buf
+          else
+            ''
+          end
+        end
+      end
+    end
+
+    # write manifest file
+    service.put_object_manifest("my_container", "large_file", 'X-Object-Manifest' => "my_container/large_file/")
+
+    # write manifest file
+    service.put_object_manifest("my_container", "large_file", 'X-Object-Manifest' => "my_container/large_file/")
+
+    # write manifest file
+    service.put_object_manifest("my_container", "large_file", 'X-Object-Manifest' => "my_container/large_file/")
+Segmented files are downloaded like ordinary files. See Download Files section for more information.
+
+Download Files
+
+The most efficient way to download files from a private or public directory is as follows:
+
+File.open('downloaded-file.jpg', 'w') do | f |
+  directory.files.get("my_big_file.jpg") do | data, remaining, content_length |
+    f.syswrite data
+  end
+end
+This will download and save the file in 1 MB chunks. The chunk size can be changed by passing the parameter :chunk_size into the :connection_options hash in the service constructor.
+
+Note: The body attribute of file will be empty if a file has been downloaded using this method.
+
+If a file object has already been loaded into memory, you can save it as follows:
+
+File.open('germany.jpg', 'w') {|f| f.write(file_object.body) }
+Note: This method is more memory intensive as the entire object is loaded into memory before saving the file as in the example above.
+
+Metadata
+
+You can access metadata as an attribute on Fog::Storage::Rackspace::File.
+
+file.metadata[:environment]
+File metadata is set when the file is saved:
+
+file.save
+Metadata is reloaded when directory or file is reloaded:
+
+file.reload
+Copy File
+
+Cloud Files supports copying files. To copy files into a container named "trip" with a name of "europe.jpg" do the following:
+
+file.copy("trip", "europe.jpg")
+To move or rename a file, perform a copy operation and then delete the old file:
+
+file.copy("trip", "germany.jpg")
+file.destroy
+Delete File
+
+To delete a file:
+
+file.destroy
+Additional Resources
+
+fog.io
+Fog rdoc
+Fog Github repo
+Fog Github Issues
+Excon Github repo
+Swift API
+Support and Feedback
+
+Your feedback is appreciated! If you have specific issues with the fog SDK, you should file an issue via Github.
