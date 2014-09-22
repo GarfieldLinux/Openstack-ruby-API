@@ -6,7 +6,7 @@ class FogSwift
    @service  = ''
    @container_name = ''
 
- 
+    
    def initialize(username)
       puts 'class init'
       begin
@@ -106,6 +106,4 @@ vmswift_a.upload_container_file('vmswift_a.txt','','vmswift_a content')
 vmswift_a.download_contain_file('vmswift_a.txt','a.txt')
 vmswift_a.upload_container_file('vmswift_a.txt','','vmswift_a content update')
 vmswift_a.download_contain_file('vmswift_a.txt','a.txt')
-
-
 
