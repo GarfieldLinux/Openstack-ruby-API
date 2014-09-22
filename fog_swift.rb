@@ -1,48 +1,111 @@
 require 'fog'
 
-service = Fog::Storage.new({
-  :provider            => 'OpenStack',   # OpenStack Fog provider
-  :openstack_username  => 'newhire:newhire',      # Your OpenStack Username
-  :openstack_api_key   => 'testing',      # Your OpenStack Password
-  :openstack_auth_url  => 'http://10.110.178.38:8080/auth/v1.0'
-})
 
-puts service.requests.to_s
+class FogSwift
+      
+   @service  = ''
+   @container_name = ''
 
-response = service.head_containers
-puts response.to_s 
-puts response.status.to_s 
+ 
+   def initialize(username)
+      puts 'class init'
+      begin
+         @container_name = username
+         @service = Fog::Storage.new({
+            :provider            => 'OpenStack',            # OpenStack Fog provider
+            :openstack_username  => 'newhire:newhire',      # Your OpenStack Username
+            :openstack_api_key   => 'testing',              # Your OpenStack Password
+            :openstack_auth_url  => 'http://10.110.178.38:8080/auth/v1.0'
+         })
+      rescue  Exception => e
+          puts "Unable to connect to Swift server , Message: #{e}"
+          exit
+      end
+   end
 
-
-puts service.directories
-
-#create container 
-service.directories.create(:key => 'jiafeiz')
-
-
-puts service.directories.get("myfiles").to_s
-
-#download container files 
-puts service.directories.get("myfiles").files
-
-
-#upload file
-file = service.directories.get("jiafeiz").files.create(:key => 'file-from-fog-api.gl', :body => File.open("Openstack-Swift-API.gl"))
-
-#To get one file and rename  
-File.open('download-file-from-aoi.gl', 'w') do | f |
-  service.directories.get("myfiles").files.get("file-from-fog-api.gl") do | data, remaining, content_length |
-    f.syswrite data
-  end
+def show_service_requests
+   puts @service.requests.to_s
 end
-#If a file object has already been loaded into memory, you can save it as follows:
-#File.open('germany.jpg', 'w') {|f| f.write(file_object.body) }
 
-#To get one file 
-puts service.directories.get("myfiles").files.get("cf-mongodb.txt")
+def show_service_head_containers
+   response = @service.head_containers
+   puts response.to_s
+   #response.status  
+   puts response.headers.to_s
+   puts response.status.to_s
+   puts response.body.to_s
+end
 
-#To delete a file:
-puts  service.directories.get("myfiles").files.get("cf-mongodb.txt").destroy
+def show_all_containers 
+   #show all the containers under user 
+   puts "containers: "
+   puts @service.directories.to_s
+end
+
+def create_container()
+   #create container
+   puts "create one container" 
+   puts @service.directories.create(:key => @container_name)
+end
+
+def get_container()
+   #get_containers
+   puts "get one container"
+   puts @service.directories.get(@container_name).to_s
+end
+
+def show_container_files()
+   #show container files
+   puts "get all the files under one container " 
+   puts @service.directories.get(@container_name).files
+end
+
+def upload_container_file(_file_name,_source_file_path,_file_data)
+   #upload file under one container  data from file on disk 
+#   file = @service.directories.get(@container_name).files.create(:key => _file_name, :body => File.open(_source_file_path))
+
+   #upload file under one container  data from file in mem 
+   file = @service.directories.get(@container_name).files.create(:key => _file_name, :body => _file_data)
+end
+
+def download_contain_file(_swift_filename,_download_filename)
+   #To get one file and rename  
+   File.open(_download_filename, 'w') do | f |
+      @service.directories.get(@container_name).files.get(_swift_filename) do | data, remaining, content_length |
+         f.syswrite data
+         puts data
+      end
+   end
+   #If a file object has already been loaded into memory, you can save it as follows:
+   #File.open('germany.jpg', 'w') {|f| f.write(file_object.body) }
+end
+
+def get_file_message(_filename)
+   #To get one file 
+   puts @service.directories.get(@container_name).files.get(_filename).to_s
+end
+
+def delete_container_file(_swift_filename)
+   #To delete a file:
+   puts  @service.directories.get(@container_name).files.get(_swift_filename).destroy
+end
+
+end
+
+############################################################## test ###################################################################
+
+vmswift_a = FogSwift.new('vmswift_a') 
+vmswift_b = FogSwift.new('vmswift_b') 
+
+vmswift_a.create_container()
+vmswift_b.create_container()
+
+vmswift_a.show_all_containers()
+
+vmswift_a.upload_container_file('vmswift_a.txt','','vmswift_a content')
+vmswift_a.download_contain_file('vmswift_a.txt','a.txt')
+vmswift_a.upload_container_file('vmswift_a.txt','','vmswift_a content update')
+vmswift_a.download_contain_file('vmswift_a.txt','a.txt')
 
 
 
