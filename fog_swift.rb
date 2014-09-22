@@ -7,15 +7,15 @@ class FogSwift
    @container_name = ''
 
     
-   def initialize(username)
+   def initialize(username,appuser,apppasswd,authurl)
       puts 'class init'
       begin
          @container_name = username
          @service = Fog::Storage.new({
             :provider            => 'OpenStack',            # OpenStack Fog provider
-            :openstack_username  => 'newhire:newhire',      # Your OpenStack Username
-            :openstack_api_key   => 'testing',              # Your OpenStack Password
-            :openstack_auth_url  => 'http://10.110.178.38:8080/auth/v1.0'
+            :openstack_username  => appuser,      # Your OpenStack Username
+            :openstack_api_key   => apppasswd,              # Your OpenStack Password
+            :openstack_auth_url  => authurl
          })
       rescue  Exception => e
           puts "Unable to connect to Swift server , Message: #{e}"
@@ -61,11 +61,19 @@ def show_container_files()
 end
 
 def upload_container_file(_file_name,_source_file_path,_file_data)
-   #upload file under one container  data from file on disk 
-#   file = @service.directories.get(@container_name).files.create(:key => _file_name, :body => File.open(_source_file_path))
-
+   if (_source_file_path != '') && (_file_data =='') then
+   #upload file under one container  data from file on disk
+      puts 'file data' 
+      file = @service.directories.get(@container_name).files.create(:key => _file_name, :body => File.open(_source_file_path))
+   elsif (_source_file_path == '') && (_file_data !='') then
    #upload file under one container  data from file in mem 
-   file = @service.directories.get(@container_name).files.create(:key => _file_name, :body => _file_data)
+      puts 'file path'
+      file = @service.directories.get(@container_name).files.create(:key => _file_name, :body => _file_data)
+   else
+      puts "wrong number of arguments"
+      return -1
+      exit
+   end   
 end
 
 def download_contain_file(_swift_filename,_download_filename)
@@ -94,11 +102,9 @@ end
 
 ############################################################## test ###################################################################
 
-vmswift_a = FogSwift.new('vmswift_a') 
-vmswift_b = FogSwift.new('vmswift_b') 
+vmswift_a = FogSwift.new('vmswift_a','newhire:newhire','testing','http://10.110.178.38:8080/auth/v1.0') 
 
 vmswift_a.create_container()
-vmswift_b.create_container()
 
 vmswift_a.show_all_containers()
 
