@@ -7,15 +7,15 @@ class FogSwift
    @container_name = ''
 
     
-   def initialize(username,appuser,apppasswd,authurl)
+   def initialize(_username,_appuser,_apppasswd,_authurl)
       puts 'class init'
       begin
-         @container_name = username
+         @container_name = _username
          @service = Fog::Storage.new({
             :provider            => 'OpenStack',            # OpenStack Fog provider
-            :openstack_username  => appuser,      # Your OpenStack Username
-            :openstack_api_key   => apppasswd,              # Your OpenStack Password
-            :openstack_auth_url  => authurl
+            :openstack_username  => _appuser,      # Your OpenStack Username
+            :openstack_api_key   => _apppasswd,              # Your OpenStack Password
+            :openstack_auth_url  => _authurl
          })
       rescue  Exception => e
           puts "Unable to connect to Swift server , Message: #{e}"
